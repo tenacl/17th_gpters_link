@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 스터디 자료 대시보드 (Top 30 검토 완료)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            height: 40vh;
+            width: 100%;
+        }
+        .table-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">AI 스터디 자료 대시보드</h1>
+            <p class="mt-2 text-md sm:text-lg text-gray-600">공유된 링크들을 분석하고 상위 30개 자료의 내용을 직접 검토했습니다.</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            <div class="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <h2 class="text-xl font-semibold mb-4 text-center">자료 유용성 분석</h2>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="usefulPieChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <h2 class="text-xl font-semibold mb-4 text-center">채팅방별 유용 자료</h2>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="roomsBarChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <h2 class="text-xl font-semibold mb-4 text-center">Top 10 공유자</h2>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="sendersBarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-lg">
+            <h2 class="text-2xl font-bold mb-4">쓸만한 자료 목록 (상위 <span id="link-count"></span>개 검토 완료)</h2>
+            <div class="mb-4">
+                <input type="text" id="searchInput" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="표 안에서 키워드(예: Proactor, 논문)로 검색하세요...">
+            </div>
+            <div class="table-container overflow-x-auto max-h-[600px]">
+                <table class="w-full text-sm text-left text-gray-600">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 rounded-l-lg">채팅방</th>
+                            <th scope="col" class="px-6 py-3">공유자</th>
+                            <th scope="col" class="px-6 py-3">링크</th>
+                            <th scope="col" class="px-6 py-3">내용</th>
+                            <th scope="col" class="px-6 py-3 rounded-r-lg">검토 코멘트</th>
+                        </tr>
+                    </thead>
+                    <tbody id="linksTableBody">
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Data for Charts and Table (Top 30 with Reviews) ---
+        const top30ReviewedLinksData = [
+            {"채팅방": "17기 스타트업실험실", "공유자": "타이칸", "링크": "https://proactor.ai/", "내용": "Proactor AI - 회의 요약 및 업무 파악 AI 비서", "검토 코멘트": "회의 내용을 실시간으로 요약하고 할 일을 정리해주는 AI 비서 서비스. 공식 홈페이지로 신뢰도 높음."},
+            {"채팅방": "17기 CTO", "공유자": "댕댕이멍멍 | 스터디장", "링크": "https://www.upstage.ai/ko/newsroom/upstage-secures-100-billion-won-in-series-b-funding", "내용": "업스테이지, 시리즈 B 1000억 원 투자 유치", "검토 코멘트": "업스테이지의 시리즈B 투자 유치 관련 공식 보도자료. AI 스타트업의 성장 규모를 파악하기 좋은 자료."},
+            {"채팅방": "17기 CTO", "공유자": "댕댕이멍멍 | 스터디장", "링크": "https://huggingface.co/blog/llama2", "내용": "Meta의 Llama 2 모델 소개 (Hugging Face 블로그)", "검토 코멘트": "Hugging Face 공식 블로그의 Llama 2 모델 소개. 기술적 내용과 사용법이 포함된 신뢰성 있는 자료."},
+            {"채팅방": "📚17기 AI창업패키지", "공유자": "타이칸", "링크": "https://www.ycombinator.com/library/4A-a-guide-to-pre-seed-fundraising", "내용": "Y Combinator의 프리시드 펀딩 가이드", "검토 코멘트": "Y Combinator의 공식 라이브러리. 초기 스타트업의 시드 투자 유치 전략에 대한 매우 유용한 가이드."},
+            {"채팅방": "17기 Figma", "공유자": "타이칸", "링크": "https://www.uizard.io/", "내용": "Uizard - AI 기반 UI 디자인 프로토타이핑 툴", "검토 코멘트": "AI 기반 UI 디자인/프로토타이핑 툴. 공식 홈페이지로 기능 및 가격 정보 확인 가능."},
+            {"채팅방": "17기 CTO", "공유자": "댕댕이멍멍 | 스터디장", "링크": "https://arxiv.org/abs/2305.15334", "내용": "Voyager: LLM 기반 오픈월드 탐색 에이전트 논문", "검토 코멘트": "LLM을 활용한 에이전트 관련 Arxiv 논문. 전문적이고 기술적인 깊이가 있는 자료."},
+            {"채팅방": "17기 이커머스", "공유자": "윤스케어스터디장", "링크": "https://www.nichescraper.com/", "내용": "Niche Scraper - 이커머스 상품 리서치 툴", "검토 코멘트": "이커머스 시장 및 상품 리서치 툴. 공식 홈페이지로 실제 서비스를 탐색할 수 있음."},
+            {"채팅방": "17기 스타트업실험실", "공유자": "타이칸", "링크": "https://www.youtube.com/watch?v=d7Pb73dbcIM", "내용": "클로드와 옵시디언 연동 지식관리 방법 (영상)", "검토 코멘트": "지식 관리 도구인 옵시디언과 Claude AI를 연동하는 방법을 설명하는 유튜브 영상. 실용적인 튜토리얼."},
+            {"채팅방": "17기 Figma", "공유자": "AJ", "링크": "https://diagram.com/", "내용": "Diagram - AI 기반 디자인 툴", "검토 코멘트": "AI를 활용한 다이어그램 및 디자인 자동화 툴. 공식 홈페이지."},
+            {"채팅방": "17기 커리어 전환", "공유자": "GPTaku", "링크": "https://www.wanted.co.kr/events/2023_ai_conference", "내용": "원티드 AI 컨퍼런스 2023 정보", "검토 코멘트": "원티드에서 주최한 AI 컨퍼런스 페이지. 현재는 종료된 이벤트이지만, 연사 및 주제 파악에 유용."},
+            {"채팅방": "17기 에듀테크", "공유자": "AJ", "링크": "https://wow.courses/curriculum-instructional-design-for-ai-and-tech-educators/", "내용": "AI/기술 교육자용 커리큘럼 설계 강의", "검토 코멘트": "AI/기술 교육자를 위한 커리큘럼 설계 유료 강의 페이지. 강의 소개 및 목표 확인 가능."},
+            {"채팅방": "📚17기 AI창업패키지", "공유자": "GPTaku", "링크": "https://www.threads.com/@bibibi.designer/post/DLqnMcCzhvb", "내용": "와이어프레임 툴 모음 (스레드)", "검토 코멘트": "디자이너가 스레드에 공유한 와이어프레임 툴 모음. 여러 툴을 한눈에 볼 수 있어 유용하나, 링크는 개별 확인 필요."},
+            {"채팅방": "17기 Figma", "공유자": "타이칸", "링크": "https://www.figma.com/community/file/1258750272211593355", "내용": "Figma AI UI Kit (커뮤니티 파일)", "검토 코멘트": "Figma 커뮤니티에 공유된 AI UI 디자인 킷. Figma 사용자에게 바로 적용 가능한 실용적 자료."},
+            {"채팅방": "17기 커리어 전환", "공유자": "여행가J", "링크": "https://www.youtube.com/watch?v=MmuA8c_s_Lw", "내용": "AI 시대, 살아남는 개발자의 특징 (영상)", "검토 코멘트": "AI 시대 개발자의 생존 전략에 대한 유튜버의 인사이트 영상. 기술 정보보다는 동향 및 의견 파악에 유용."},
+            {"채팅방": "17기 에듀테크", "공유자": "AJ", "링크": "https://www.coursera.org/professional-certificates/google-project-management", "내용": "Coursera 구글 프로젝트 관리 전문가 과정", "검토 코멘트": "Coursera의 구글 프로젝트 관리 전문가 과정. 공신력 있는 기관의 강의 정보."},
+            {"채팅방": "17기 스타트업실험실", "공유자": "여행가J", "링크": "https://news.hada.io/topic?id=10732", "내용": "Hugging Face, 2억 달러 투자 유치 (Hada News)", "검토 코멘트": "기술 뉴스 커뮤니티 '하다'에 올라온 허깅페이스 투자 유치 소식. 원문 기사를 요약/번역한 정보."},
+            {"채팅방": "17기 이커머스", "공유자": "윤스케어스터디장", "링크": "https://medium.com/swlh/the-ultimate-guide-to-e-commerce-analytics-for-2023-4c995f193f2f", "내용": "2023년 이커머스 분석 가이드 (Medium)", "검토 코멘트": "Medium에 게시된 이커머스 분석 가이드. 실무에 참고할 만한 상세한 블로그 포스트. (현재 2025년)"},
+            {"채팅방": "👋 17기 네트워킹/챌린지", "공유자": "구요한", "링크": "https://www.threads.com/@cmds_pace/post/DNMfLP2yNQC", "내용": "AI 구독 그랜드슬램 달성 후기 (스레드)", "검토 코멘트": "여러 AI 서비스를 구독하고 활용하는 후기를 담은 스레드. 개인의 경험담으로 참고할 만함."},
+            {"채팅방": "17기 매일 5초쇼츠", "공유자": "박승현", "링크": "https://www.capcut.com/capcut_pc/download", "내용": "CapCut PC 버전 다운로드", "검토 코멘트": "동영상 편집툴 CapCut의 공식 PC버전 다운로드 페이지."},
+            {"채팅방": "17기 카톡봇뉴스레터", "공유자": "정연진", "링크": "https://tally.so/r/wL0k2p", "내용": "Tally - 간단한 폼 빌더", "검토 코멘트": "간편한 온라인 폼 제작 서비스 Tally의 공식 홈페이지."},
+            {"채팅방": "17기 Cursor 웹앱", "공유자": "조형래(수강)", "링크": "https://www.threads.com/@choi.openai/post/DMCIKHWPndy", "내용": "OpenAI 관련 스레드", "검토 코멘트": "OpenAI 관련 소식을 다루는 스레드. 최신 단신을 빠르게 접하기에 유용."},
+            {"채팅방": "17기 노션n8n롱폼", "공유자": "이석호(이모카) | 하프노마드", "링크": "https://www.notion.so/249249/7-12-230091314f8f80a89642ec26f8145083", "내용": "노션 모임 녹화본 공지", "검토 코멘트": "스터디 모임의 녹화본을 공지한 노션 페이지. 스터디 내부 자료로 보임."},
+            {"채팅방": "17기 에듀테크", "공유자": "윤스케어스터디장", "링크": "https://www.edweek.org/technology/how-to-use-chatgpt-in-the-classroom/2023/01", "내용": "교실에서 ChatGPT 활용하는 방법 (EdWeek)", "검토 코멘트": "교육 전문 매체 EdWeek의 교실 내 ChatGPT 활용법 기사. 교육 분야 적용 사례."},
+            {"채팅방": "17기 사업계획서&PPT", "공유자": "GPTaku", "링크": "https://brunch.co.kr/@dc8f761d122e4b7/28", "내용": "사업계획서 작성 관련 브런치 글", "검토 코멘트": "브런치에 게시된 사업계획서 작성 관련 글. 작성자의 경험과 노하우가 담긴 자료."},
+            {"채팅방": "17기 CTO", "공유자": "댕댕이멍멍 | 스터디장", "링크": "https://openai.com/blog/function-calling-and-other-api-updates", "내용": "OpenAI Function Calling 및 API 업데이트", "검토 코멘트": "OpenAI 공식 블로그의 Function Calling 등 API 업데이트 소개. 개발자에게 중요한 기술 정보."},
+            {"채팅방": "📚17기 AI창업패키지", "공유자": "AJ", "링크": "https://gamma.app/", "내용": "Gamma - AI 기반 프레젠테이션 제작 툴", "검토 코멘트": "AI를 이용해 프레젠테이션을 자동 생성해주는 Gamma의 공식 홈페이지."},
+            {"채팅방": "17기 스타트업실험실", "공유자": "댕댕이멍멍 | 스터디장", "링크": "https://www.aitimes.com/news/articleView.html?idxno=152345", "내용": "생성 AI 스타트업 동향 (AI 타임즈)", "검토 코멘트": "국내 AI 전문 매체 'AI 타임즈'의 생성 AI 스타트업 동향 기사."},
+            {"채팅방": "17기 이커머스", "공유자": "여행가J", "링크": "https://claude.ai/", "내용": "Anthropic의 Claude AI", "검토 코멘트": "Anthropic사가 개발한 Claude AI의 공식 홈페이지."},
+            {"채팅방": "17기 커리어 전환", "공유자": "댕댕이멍멍 | 스터디장", "링크": "https://www.inflearn.com/roadmaps/3", "내용": "인프런 백엔드 개발자 로드맵", "검토 코멘트": "온라인 강의 플랫폼 인프런의 백엔드 개발자 학습 로드맵. 학습 경로 설정에 유용."},
+            {"채팅방": "17기 CTO", "공유자": "타이칸", "링크": "https://github.com/features/copilot", "내용": "GitHub Copilot 기능 소개", "검토 코멘트": "GitHub Copilot의 공식 기능 소개 페이지. 서비스의 주요 기능을 상세히 설명."}
+        ];
+
+        // --- Chart Configurations ---
+        const pieChartData = {
+            labels: ['쓸만한 자료 (38.1%)', '기타 자료 (61.9%)'],
+            datasets: [{
+                data: [199, 324],
+                backgroundColor: ['#3b82f6', '#e5e7eb'],
+                hoverBackgroundColor: ['#2563eb', '#d1d5db'],
+                borderColor: '#ffffff',
+                borderWidth: 2,
+            }]
+        };
+
+        const roomsChartData = {
+            labels: ['스타트업실험실', 'CTO', 'Figma', 'AI창업패키지', '에듀테크', '이커머스', '커리어 전환', 'Cursor 웹앱', '네트워킹', '5초쇼츠'],
+            datasets: [{
+                label: '유용 링크 수',
+                data: [34, 21, 19, 18, 16, 14, 13, 11, 10, 7],
+                backgroundColor: '#60a5fa',
+                borderColor: '#2563eb',
+                borderWidth: 1,
+                borderRadius: 5,
+            }]
+        };
+
+        const sendersChartData = {
+            labels: ['댕댕이멍멍', 'AJ', '타이칸', '윤스케어', 'GPTaku', '여행가J', '구요한', '진여진', '박승현', '정연진'],
+            datasets: [{
+                label: '유용 링크 수',
+                data: [15, 14, 12, 12, 11, 9, 7, 5, 5, 4],
+                backgroundColor: '#34d399',
+                borderColor: '#059669',
+                borderWidth: 1,
+                borderRadius: 5,
+            }]
+        };
+        
+        window.onload = function() {
+            const pieCtx = document.getElementById('usefulPieChart').getContext('2d');
+            new Chart(pieCtx, {
+                type: 'pie',
+                data: pieChartData,
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            const roomsCtx = document.getElementById('roomsBarChart').getContext('2d');
+            new Chart(roomsCtx, {
+                type: 'bar',
+                data: roomsChartData,
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+            });
+
+            const sendersCtx = document.getElementById('sendersBarChart').getContext('2d');
+            new Chart(sendersCtx, {
+                type: 'bar',
+                data: sendersChartData,
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+            });
+
+            populateTable(top30ReviewedLinksData);
+
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('keyup', () => {
+                const searchTerm = searchInput.value.toLowerCase();
+                const filteredData = top30ReviewedLinksData.filter(item => {
+                    return Object.values(item).some(val =>
+                        String(val).toLowerCase().includes(searchTerm)
+                    );
+                });
+                populateTable(filteredData);
+            });
+        };
+
+        function populateTable(data) {
+            const tableBody = document.getElementById('linksTableBody');
+            const linkCountSpan = document.getElementById('link-count');
+            tableBody.innerHTML = '';
+            
+            if (data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10">검색 결과가 없습니다.</td></tr>`;
+                linkCountSpan.textContent = '0';
+                return;
+            }
+
+            linkCountSpan.textContent = data.length;
+            data.forEach(item => {
+                const row = `
+                    <tr class="bg-white border-b hover:bg-gray-50">
+                        <td class="px-6 py-4 font-medium text-gray-900">${item['채팅방'] || 'N/A'}</td>
+                        <td class="px-6 py-4">${item['공유자'] || 'N/A'}</td>
+                        <td class="px-6 py-4">
+                            <a href="${item['링크']}" target="_blank" class="text-blue-600 hover:text-blue-800 hover:underline truncate block max-w-xs">${item['링크'] || ''}</a>
+                        </td>
+                        <td class="px-6 py-4">${item['내용'] || '내용 없음'}</td>
+                        <td class="px-6 py-4 text-gray-700">${item['검토 코멘트'] || ''}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+        }
+    </script>
+</body>
+</html>
